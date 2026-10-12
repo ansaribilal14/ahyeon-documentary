@@ -34,49 +34,20 @@ python pipeline/mpt_bridge.py          # or --dry-run
 attribution not required but we record it anyway (auto-appended to the YouTube
 description by `build_timeline.py`).
 
-## 2. ytagent (Bilal140202/ytagent, MIT) — `pipeline/ytagent_bridge.py` + `.github/workflows/yt-download-farm.yml`
+## 2. ytagent (Bilal140202/ytagent, MIT) — `pipeline/ytagent_bridge.py` (LOCAL ONLY)
 
 **What it does.** Sources *subject footage* (official BABYMONSTER uploads) listed in
 `project/subject_sources.json`, downloads them via ytagent's 13-method fallback
 chain, cuts short commentary excerpts (≤10 s, silent, 1920×1080 30fps), and adds
 them to the media pool tagged for human review.
 
-**This repo hosts its own remote download farm.** ytagent's `github_actions_farm`
-method was pointed at this repository: `.github/workflows/yt-download-farm.yml`
-installs Cloudflare WARP on a GitHub runner (Azure egress), runs yt-dlp + BGutil
-PO-token provider behind a 6-tier client ladder (embedded → tv → mweb/web_safari →
-web → default), verifies the file, and uploads it as an artifact the bridge pulls back.
+**HARDENED RULE R8 (2026-10-13): GitHub Actions must NEVER download YouTube videos.**
+The former remote download farm workflow (`.github/workflows/yt-download-farm.yml`)
+has been REMOVED from this repository and from the engine. All YouTube
+acquisition happens locally on our own server via ytagent's direct methods
+(android_vr + BGutil POT, SOCKS5 relays, Cobalt, Invidious) — never on
+GitHub-hosted runners.
 
-```bash
-export ENABLE_YTAGENT=1
-export YTAGENT_GH_TOKEN=<PAT with repo+workflow scope>   # used ONLY for the farm dispatch
-python pipeline/ytagent_bridge.py                        # or --dry-run
-```
-**CI:** set repo Secrets `ENABLE_YTAGENT=1`, `FARM_PAT` (PAT). CLI fallback also works:
-`pip install ytagent-cli && ytagent download <url> --json`.
-
-**Live validation log (2026-10-10, datacenter IP, UMG-distributed MV `2wA_b6YHjqQ`):**
-
-| # | What was proven / fixed |
-|---|---|
-| 1 | ytagent 0.3.0 CLI walks all 13 methods; relays rate-limited; **socks5_farm found a live proxy in 64 s** (per-method timeout too small) |
-| 2 | `github_actions_farm` is library-only (`github_token` opt) — bridge calls the Python API directly |
-| 3 | Farm workflow dispatch → run → wait → artifact loop **mechanically proven end-to-end** (run 38073898191+) |
-| 4 | Fixed: `warp-cli` needs a **TTY** for TOS → `printf 'y\n' \| script -qec` (also: daemon-start race, `--accept-tos` not a subcommand flag in 2026 CLI) |
-| 5 | Fixed: **comments between backslash-continued `\|\|` chains swallow the operators** — the whole ladder never ran until hoisted |
-| 6 | WARP connects (18:15 UTC log); UMG MV still blocked: embedded/tv/mweb → GVS-token-gated or `RELOAD_PAGE`; direct Azure IP → `LOGIN_REQUIRED` bot-wall |
-
-**Honest status:** the farm plumbing is production-ready and hardened (6 real bugs
-found and fixed in one session); **label-owned (UMG) MVs remain blocked** from
-datacenter/runner egress as of this writing — this is the known 2026 PO-token/IP-binding
-arms race, not a bug in the chain. Non-UMG and embeddable uploads succeed (ytagent's
-own 9/10 batch proof). To source UMG subject clips today: run the bridge from a
-residential IP, or self-host Cobalt + WARP (ytagent docs) and point `opts["proxy"]` at it.
-
-**Rights gate:** subject clips carry `license: "Subject clip — rights of owner; fair-use
-documentary commentary — REVIEW BEFORE MONETIZED PUBLISH"`. `pipeline/qc.py` reports a
-`subject_clip_policy` check with the review warning; attribution is auto-appended to the
-video description.
 
 ## 3. Timeline + render support for real footage
 
@@ -94,5 +65,5 @@ video description.
 |---|---|
 | v1.0 behavior, zero changes | set nothing (default) |
 | + stock footage (Pexels/Pixabay) | `ENABLE_MPT_STOCK=1` + keys |
-| + subject clips via farm | `ENABLE_YTAGENT=1` + `YTAGENT_GH_TOKEN`/`FARM_PAT` |
+| + subject clips via LOCAL ytagent | `ENABLE_YTAGENT=1` (local) |
 | render without videos | `USE_VIDEOS=0 python pipeline/build_timeline.py` |

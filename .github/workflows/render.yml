@@ -32,7 +32,6 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           ENABLE_YTAGENT: ${{ secrets.ENABLE_YTAGENT }}
-          YTAGENT_GH_TOKEN: ${{ secrets.FARM_PAT }}
         run: |
           python pipeline/mpt_bridge.py
           python pipeline/ytagent_bridge.py
